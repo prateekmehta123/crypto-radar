@@ -8,7 +8,7 @@ It answers four questions in order of how badly they can waste your time:
   1. Can this server reach the Binance Futures API at all? (HTTP 451 means no,
      and no amount of code fixes it.)
   2. Where is this server, according to the internet?
-  3. Are the Telegram credentials valid, and does a test message arrive?
+  3. Is the dashboard configured safely for how you plan to reach it?
   4. Can the process write its SQLite database?
 
 Exits non-zero if anything critical fails.
@@ -73,35 +73,21 @@ def check_binance(proxy: str) -> bool:
     return False
 
 
-def check_telegram() -> bool:
-    hdr("3. Are the Telegram credentials working?")
-    token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
-    chat = os.environ.get("TELEGRAM_CHAT_ID", "")
-    if not token or not chat:
-        print("   FAIL - TELEGRAM_BOT_TOKEN and/or TELEGRAM_CHAT_ID not set.")
-        return False
-    try:
-        me = requests.get(f"https://api.telegram.org/bot{token}/getMe", timeout=10)
-        if me.status_code != 200:
-            print(f"   FAIL - token rejected: {me.text[:200]}")
-            return False
-        name = me.json()["result"]["username"]
-        print(f"   token OK - bot is @{name}")
-
-        send = requests.post(
-            f"https://api.telegram.org/bot{token}/sendMessage",
-            json={"chat_id": chat, "text": "\u2705 radar preflight: this chat is wired up.",
-                  "disable_notification": True}, timeout=10)
-        if send.status_code != 200:
-            print(f"   FAIL - could not send to chat {chat}: {send.text[:250]}")
-            print("          Most common cause: you have not sent the bot a message yet.")
-            print("          Open the bot in Telegram, press Start, then re-run.")
-            return False
-        print(f"   OK - test message delivered to chat {chat}")
+def check_dashboard() -> bool:
+    hdr("3. Is the dashboard configured safely?")
+    host = os.environ.get("HOST", "127.0.0.1")
+    pw = os.environ.get("RADAR_PASSWORD", "")
+    if host in ("127.0.0.1", "localhost", "::1"):
+        print("   OK - local only (HOST=%s)." % host)
+        print("        Reachable at http://localhost:8080 on this machine.")
+        print("        To expose it on a server, set HOST=0.0.0.0 and RADAR_PASSWORD.")
         return True
-    except Exception as e:                                # noqa: BLE001
-        print(f"   FAIL - {e}")
+    if not pw:
+        print("   FAIL - HOST=%s exposes the dashboard, but RADAR_PASSWORD is not set." % host)
+        print("          The app will refuse to start. Set a password.")
         return False
+    print("   OK - exposed on %s and password-protected." % host)
+    return True
 
 
 def check_storage() -> bool:
@@ -127,18 +113,19 @@ def main() -> int:
     proxy = os.environ.get("BINANCE_PROXY", "").strip()
     check_egress_ip()
     binance_ok = check_binance(proxy)
-    tg_ok = check_telegram()
+    dash_ok = check_dashboard()
     db_ok = check_storage()
 
     hdr("verdict")
-    if binance_ok and tg_ok and db_ok:
-        print("   All checks passed. Safe to deploy.")
+    if binance_ok and dash_ok and db_ok:
+        print("   All checks passed.")
+        print("   Start it with:  python main.py     then open http://localhost:8080")
         return 0
     if not binance_ok:
         print("   BLOCKED: no Binance access. Fix this before anything else --")
         print("            nothing downstream can work without market data.")
-    if not tg_ok:
-        print("   BLOCKED: Telegram not configured. Alerts will be dropped.")
+    if not dash_ok:
+        print("   BLOCKED: the dashboard would refuse to start. See section 3.")
     if not db_ok:
         print("   WARNING: no database. Dedupe and OI history will not work.")
     return 1

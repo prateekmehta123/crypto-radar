@@ -34,11 +34,57 @@ Configuration is entirely environment variables. On AWS these live in
 from __future__ import annotations
 
 import os
+import sys
 
-from radar.api import serve
+
+def _fail(msg: str) -> None:
+    """Exit with something a human can act on, not a traceback."""
+    print("\n" + "-" * 62, file=sys.stderr)
+    print(msg.strip(), file=sys.stderr)
+    print("-" * 62 + "\n", file=sys.stderr)
+    raise SystemExit(1)
+
 
 if __name__ == "__main__":
+    try:
+        from radar.api import serve
+    except ModuleNotFoundError as e:
+        missing = getattr(e, "name", "") or str(e)
+        if missing.startswith("radar"):
+            _fail("Can't find the radar package.\n\n"
+                  "You're running this from the wrong folder. Move to the folder\n"
+                  "containing main.py and try again:\n\n"
+                  "    dir main.py        (Windows)\n"
+                  "    ls main.py         (Mac/Linux)")
+        _fail(f"A required package is missing: {missing}\n\n"
+              "Install the dependencies first:\n\n"
+              "    pip install -r requirements.txt\n\n"
+              "On Windows, if pip is not recognised, use:\n\n"
+              "    python -m pip install -r requirements.txt")
+
     # Localhost by default so `python main.py` just works while you try it out.
     # Exposing it to a network is an explicit opt-in that requires a password.
-    serve(host=os.environ.get("HOST", "127.0.0.1"),
-          port=int(os.environ.get("PORT", 8080)))
+    host = os.environ.get("HOST", "127.0.0.1")
+    port = int(os.environ.get("PORT", 8080))
+
+    try:
+        serve(host=host, port=port)
+    except OSError as e:
+        # errno 98 (Linux) / 10048 (Windows) -- address already in use
+        if getattr(e, "errno", None) in (48, 98, 10048):
+            _fail(f"Port {port} is already being used.\n\n"
+                  "Something else is on that port -- most likely another copy of\n"
+                  "this app you started earlier and left running.\n\n"
+                  "Either close the other window, or run this one on a different\n"
+                  "port:\n\n"
+                  f"    Windows:    $env:PORT=8081; python main.py\n"
+                  f"    Mac/Linux:  PORT=8081 python main.py\n\n"
+                  "Then open http://localhost:8081 instead.")
+        if getattr(e, "errno", None) in (13, 10013):
+            _fail(f"Not allowed to use port {port}.\n\n"
+                  "Ports below 1024 need admin rights. Use a higher one:\n\n"
+                  "    Windows:    $env:PORT=8080; python main.py\n"
+                  "    Mac/Linux:  PORT=8080 python main.py")
+        raise
+    except KeyboardInterrupt:
+        print("\nStopped.")

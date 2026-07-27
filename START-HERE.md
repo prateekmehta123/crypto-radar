@@ -26,7 +26,22 @@ to miss and everything fails later without it.
 - **Windows** — press Start, type `powershell`, press Enter.
 - **Mac** — press Cmd+Space, type `terminal`, press Enter.
 
-A window with a text prompt appears. This is where commands go.
+A window with a text prompt appears. This is where every command below goes.
+
+**Check the prompt before you type anything.** There are two different prompts and they
+are easy to mix up:
+
+| Prompt | What it is | Correct? |
+|---|---|---|
+| `PS C:\Users\You>` or `you@Mac ~ %` | the terminal | yes — use this |
+| `>>>` | Python | no — you're in the wrong place |
+
+If you see `>>>`, type `exit()` and press Enter to get back out. You land in `>>>` by
+typing `python` on its own. You never want that here — every command below is either
+`python` **followed by a filename**, or not Python at all.
+
+Symptom if you get this wrong: `cd` gives you a `SyntaxError` mentioning
+`unicodeescape`. That's Python trying to read a Windows path as code.
 
 ### 1.3 Unzip the code somewhere you can find
 
@@ -37,6 +52,13 @@ Unzip `crypto-radar.zip` to your Desktop. You should end up with a folder called
 
 Type `cd ` (with a space after it), then **drag the crypto-radar folder from your Desktop
 into the terminal window** — it fills in the path for you. Press Enter.
+
+If the path contains spaces or brackets (a folder like `files (2)` does), wrap it in
+double quotes:
+
+```
+cd "C:\Users\You\Downloads\files (2)\crypto-radar"
+```
 
 Check you're in the right place:
 
@@ -293,6 +315,13 @@ it and launching a new one in Mumbai, Singapore or Tokyo.
 
 **Can't select t4g.small when launching.** The AMI architecture is set to x86. Go back to
 step 2 and change **Architecture** to **64-bit (Arm)**.
+
+**`SyntaxError` when you type `cd`.** You're at the `>>>` Python prompt instead of the
+terminal. Type `exit()`, press Enter, and try again. See the table in step 1.2.
+
+**`pip` is not recognised (Windows).** Use `python -m pip install -r requirements.txt`
+instead. If that also fails, Python was installed without ticking "Add python.exe to
+PATH" — reinstall it and tick that box.
 
 **The page loads but stays empty.** The first scan hasn't finished. Give it two minutes,
 then check `sudo journalctl -u radar -f` for errors.
