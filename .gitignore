@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+radar.db
+data/
+*.joblib
+latest.json
+backtest_report*.json
+.env
